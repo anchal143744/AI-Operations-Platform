@@ -1,0 +1,76 @@
+# Single-host reference deployment. PostgreSQL is external/managed. Put a
+# trusted HTTPS reverse proxy in front of the loopback-only web/API listeners.
+x-app: &app
+  image: ${AOP_IMAGE:?Set the reviewed immutable application image}
+  init: true
+  restart: unless-stopped
+  stop_grace_period: 2m
+
+services:
+  web:
+    <<: *app
+    command: ["pnpm", "--filter", "@aop/web", "start"]
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    ports:
+      - "127.0.0.1:${AOP_WEB_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  api:
+    <<: *app
+    command: ["pnpm", "--filter", "@aop/api", "start"]
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      DATABASE_URL: ${DATABASE_URL:?Set the managed PostgreSQL URL}
+      APP_ORIGIN: ${APP_ORIGIN:?Set the HTTPS web origin}
+      AUTH_TOKEN_PEPPER: ${AUTH_TOKEN_PEPPER:?Set a unique secret}
+      AUTH_EMAIL_TRANSPORT: ${AUTH_EMAIL_TRANSPORT:?Set ses for production}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      SES_FROM_EMAIL: ${SES_FROM_EMAIL:?Set a verified SES sender}
+    ports:
+      - "127.0.0.1:${AOP_API_PORT:-4000}:4000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    <<: *app
+    command: ["pnpm", "--filter", "@aop/api", "worker"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?Set the managed PostgreSQL URL}
+      OUTBOX_POLL_INTERVAL_MS: ${OUTBOX_POLL_INTERVAL_MS:-1000}
+    depends_on:
+      api:
+        condition: service_healthy
+
+  migrate:
+    image: ${AOP_IMAGE:?Set the reviewed immutable application image}
+    profiles: ["operations"]
+    command: ["pnpm", "db:migrate:deploy"]
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?Set the managed PostgreSQL URL}

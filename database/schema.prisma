@@ -1,0 +1,952 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  DISABLED
+
+  @@map("user_status")
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+
+  @@map("organization_status")
+}
+
+enum WorkspaceStatus {
+  ACTIVE
+  DISABLED
+
+  @@map("workspace_status")
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MANAGER
+  SALES
+  VIEWER
+
+  @@map("membership_role")
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  REVOKED
+
+  @@map("membership_status")
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  IN_PROGRESS
+  CONVERTED
+  LOST
+
+  @@map("lead_status")
+}
+
+enum LeadPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+
+  @@map("lead_priority")
+}
+
+enum LeadSource {
+  WEBSITE
+  WHATSAPP
+  EMAIL
+  INSTAGRAM
+  PHONE
+  MANUAL
+  OTHER
+
+  @@map("lead_source")
+}
+
+enum FollowUpType {
+  CALL
+  EMAIL
+  MESSAGE
+  MEETING
+  TASK
+  OTHER
+
+  @@map("follow_up_type")
+}
+
+enum FollowUpState {
+  PENDING
+  COMPLETED
+  CANCELLED
+
+  @@map("follow_up_state")
+}
+
+enum ConversationChannel {
+  WHATSAPP
+  INSTAGRAM
+  EMAIL
+  SMS
+  WEB_CHAT
+  PHONE
+  WEBSITE
+  OTHER
+
+  @@map("conversation_channel")
+}
+
+enum ConversationStatus {
+  OPEN
+  WAITING
+  RESOLVED
+  ARCHIVED
+
+  @@map("conversation_status")
+}
+
+enum ConversationAttentionState {
+  NONE
+  HUMAN_REQUIRED
+  AI_REVIEW_REQUIRED
+  FOLLOW_UP_DUE
+
+  @@map("conversation_attention_state")
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+
+  @@map("message_direction")
+}
+
+enum MessageSenderType {
+  CUSTOMER
+  HUMAN
+  AI
+
+  @@map("message_sender_type")
+}
+
+enum MessageStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  SENT
+  QUEUED
+  SUBMITTED
+  PROVIDER_ACCEPTED
+  DELIVERED
+  READ
+  FAILED
+  CANCELLED
+
+  @@map("message_status")
+}
+
+enum CommunicationProvider {
+  TEST
+
+  @@map("communication_provider")
+}
+
+enum ProviderConfigurationStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("provider_configuration_status")
+}
+
+enum ProviderWebhookEventType {
+  MESSAGE_ACCEPTED
+  MESSAGE_DELIVERED
+  MESSAGE_READ
+  MESSAGE_FAILED
+  MESSAGE_RECEIVED
+
+  @@map("provider_webhook_event_type")
+}
+
+enum OutboxEventType {
+  SEND_MESSAGE
+  WORKFLOW_DRY_RUN
+  WORKFLOW_INTERNAL_NOTIFICATION
+
+  @@map("outbox_event_type")
+}
+
+enum OutboxEventStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+
+  @@map("outbox_event_status")
+}
+
+enum ActivityActorType {
+  USER
+  SYSTEM
+  AI
+  PROVIDER
+
+  @@map("activity_actor_type")
+}
+
+enum ActivityEventType {
+  USER_LOGIN
+  USER_LOGOUT
+  ORGANIZATION_CREATED
+  WORKSPACE_CREATED
+  WORKSPACE_SELECTED
+  LEAD_CREATED
+  LEAD_UPDATED
+  FOLLOW_UP_CREATED
+  FOLLOW_UP_COMPLETED
+  FOLLOW_UP_RESCHEDULED
+  SETTINGS_UPDATED
+  CONVERSATION_CREATED
+  MESSAGE_RECORDED
+  MESSAGE_QUEUED
+  MESSAGE_SUBMITTED
+  MESSAGE_DELIVERY_ACCEPTED
+    MESSAGE_DELIVERY_UNCERTAIN
+  MESSAGE_DELIVERED
+  MESSAGE_FAILED
+  WEBHOOK_RECEIVED
+  WORKFLOW_CREATED
+  WORKFLOW_DEFINITION_CHANGED
+  WORKFLOW_STATUS_CHANGED
+  POLICY_CHANGED
+  POLICY_EVALUATED
+  APPROVAL_DECIDED
+  WORKFLOW_EXECUTION_CHANGED
+  NOTIFICATION_CREATED
+  NOTIFICATION_READ
+  APPROVAL_EXPIRED
+
+  @@map("activity_event_type")
+}
+
+enum WorkflowStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum WorkflowTriggerType {
+  MANUAL
+}
+
+enum WorkflowActionType {
+  DRY_RUN_LOG
+  INTERNAL_NOTIFICATION
+}
+
+enum PolicyMode {
+  ALLOW_DRY_RUN
+  REQUIRE_APPROVAL
+  BLOCK
+}
+
+enum PolicyEvaluationResult {
+  ALLOWED
+  APPROVAL_REQUIRED
+  BLOCKED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum WorkflowExecutionStatus {
+  QUEUED
+  WAITING_FOR_APPROVAL
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum ExecutionStepStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+model User {
+  id                  String                   @id @default(uuid()) @db.Uuid
+  email               String                   @db.VarChar(320)
+  normalizedEmail     String                   @unique(map: "users_normalized_email_key") @map("normalized_email") @db.VarChar(320)
+  name                String                   @db.VarChar(160)
+  passwordHash        String                   @map("password_hash") @db.VarChar(255)
+  emailVerifiedAt     DateTime?                @map("email_verified_at") @db.Timestamptz(3)
+  status              UserStatus               @default(PENDING_VERIFICATION)
+  createdAt           DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+  memberships         Membership[]
+  verificationTokens  EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  sessions            Session[]
+
+  @@index([email], map: "users_email_idx")
+  @@index([createdAt], map: "users_created_at_idx")
+  @@map("users")
+}
+
+model EmailVerificationToken {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  contextHash String    @unique(map: "email_verification_tokens_context_hash_key") @map("context_hash") @db.VarChar(64)
+  tokenHash   String    @map("token_hash") @db.VarChar(64)
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(3)
+  consumedAt  DateTime? @map("consumed_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([userId, createdAt], map: "email_verification_tokens_user_created_at_idx")
+  @@index([expiresAt], map: "email_verification_tokens_expires_at_idx")
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique(map: "password_reset_tokens_token_hash_key") @map("token_hash") @db.VarChar(64)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(3)
+  consumedAt DateTime? @map("consumed_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([userId, createdAt], map: "password_reset_tokens_user_created_at_idx")
+  @@index([expiresAt], map: "password_reset_tokens_expires_at_idx")
+  @@map("password_reset_tokens")
+}
+
+model Session {
+  id                   String     @id @default(uuid()) @db.Uuid
+  userId               String     @map("user_id") @db.Uuid
+  activeOrganizationId String?    @map("active_organization_id") @db.Uuid
+  activeWorkspaceId    String?    @map("active_workspace_id") @db.Uuid
+  tokenHash            String     @unique(map: "sessions_token_hash_key") @map("token_hash") @db.VarChar(64)
+  expiresAt            DateTime   @map("expires_at") @db.Timestamptz(3)
+  revokedAt            DateTime?  @map("revoked_at") @db.Timestamptz(3)
+  lastUsedAt           DateTime?  @map("last_used_at") @db.Timestamptz(3)
+  createdAt            DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user                 User       @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  activeWorkspace      Workspace? @relation(fields: [activeWorkspaceId, activeOrganizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([userId, expiresAt], map: "sessions_user_expires_at_idx")
+  @@index([expiresAt], map: "sessions_expires_at_idx")
+  @@index([userId, revokedAt], map: "sessions_user_revoked_at_idx")
+  @@index([activeOrganizationId, activeWorkspaceId], map: "sessions_active_workspace_idx")
+  @@map("sessions")
+}
+
+/// Shared, short-lived authentication abuse counters. Keys are HMAC digests;
+/// raw IP addresses, email addresses, and verification/reset tokens are not stored.
+model AuthRateLimitBucket {
+  keyHash   String   @id @map("key_hash") @db.VarChar(64)
+  attempts  Int
+  resetAt   DateTime @map("reset_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([resetAt], map: "auth_rate_limit_buckets_reset_at_idx")
+  @@map("auth_rate_limit_buckets")
+}
+
+model Organization {
+  id          String             @id @default(uuid()) @db.Uuid
+  name        String             @db.VarChar(160)
+  slug        String             @unique(map: "organizations_slug_key") @db.VarChar(100)
+  status      OrganizationStatus @default(ACTIVE)
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  memberships Membership[]
+  workspaces  Workspace[]
+
+  @@index([createdAt], map: "organizations_created_at_idx")
+  @@map("organizations")
+}
+
+model Membership {
+  id                   String           @id @default(uuid()) @db.Uuid
+  userId               String           @map("user_id") @db.Uuid
+  organizationId       String           @map("organization_id") @db.Uuid
+  role                 MembershipRole
+  status               MembershipStatus @default(INVITED)
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user                 User             @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  organization         Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  activityEvents       ActivityEvent[]
+  createdLeads         Lead[]
+  createdConversations Conversation[]
+  sentMessages         Message[]
+  approvalDecisions    ApprovalDecision[]
+  initiatedWorkflowExecutions WorkflowExecution[]
+  notifications        Notification[]
+
+  @@unique([userId, organizationId], map: "memberships_user_organization_key")
+  @@unique([id, organizationId], map: "memberships_id_organization_key")
+  @@index([userId, status], map: "memberships_user_status_idx")
+  @@index([organizationId, role, status], map: "memberships_organization_role_status_idx")
+  @@index([createdAt], map: "memberships_created_at_idx")
+  @@map("memberships")
+}
+
+model Workspace {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  name           String             @db.VarChar(160)
+  slug           String             @db.VarChar(100)
+  status         WorkspaceStatus    @default(ACTIVE)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  leads          Lead[]
+  conversations  Conversation[]
+  followUps      FollowUp[]
+  aiOperations   AIOperation[]
+  workflows      Workflow[]
+  approvals      ApprovalRequest[]
+  activityEvents ActivityEvent[]
+  settings       WorkspaceSettings?
+  activeSessions Session[]
+  providerConfigurations ProviderConfiguration[]
+  providerWebhookEvents ProviderWebhookEvent[]
+  outboxEvents OutboxEvent[]
+  policies Policy[]
+  policyEvaluations PolicyEvaluation[]
+  workflowExecutions WorkflowExecution[]
+  executionSteps ExecutionStep[]
+  approvalDecisions ApprovalDecision[]
+  notifications Notification[]
+
+  @@unique([organizationId, slug], map: "workspaces_organization_slug_key")
+  @@unique([id, organizationId], map: "workspaces_id_organization_key")
+  @@index([organizationId, createdAt], map: "workspaces_organization_created_at_idx")
+  @@map("workspaces")
+}
+
+// Phase 20 establishes ownership and safe cross-tenant references only.
+// Feature-specific columns and state machines are added in their owning phases.
+model Lead {
+  id                    String            @id @default(uuid()) @db.Uuid
+  organizationId        String            @map("organization_id") @db.Uuid
+  workspaceId           String            @map("workspace_id") @db.Uuid
+  name                  String            @db.VarChar(160)
+  company               String?           @db.VarChar(160)
+  email                 String?           @db.VarChar(320)
+  phone                 String?           @db.VarChar(40)
+  status                LeadStatus        @default(NEW)
+  priority              LeadPriority      @default(MEDIUM)
+  source                LeadSource        @default(MANUAL)
+  createdByMembershipId String?           @map("created_by_membership_id") @db.Uuid
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workspace             Workspace         @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  createdByMembership   Membership?       @relation(fields: [createdByMembershipId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  conversations         Conversation[]
+  followUps             FollowUp[]
+  aiOperations          AIOperation[]
+  approvals             ApprovalRequest[]
+  activityEvents        ActivityEvent[]
+
+  @@unique([id, organizationId, workspaceId], map: "leads_id_tenant_key")
+  @@index([organizationId, workspaceId, createdAt], map: "leads_tenant_created_at_idx")
+  @@index([organizationId, workspaceId, status, createdAt], map: "leads_tenant_status_created_at_idx")
+  @@index([organizationId, createdByMembershipId], map: "leads_tenant_creator_idx")
+  @@map("leads")
+}
+
+model Conversation {
+  id                    String                     @id @default(uuid()) @db.Uuid
+  organizationId        String                     @map("organization_id") @db.Uuid
+  workspaceId           String                     @map("workspace_id") @db.Uuid
+  leadId                String?                    @map("lead_id") @db.Uuid
+  createdByMembershipId String?                    @map("created_by_membership_id") @db.Uuid
+  channel               ConversationChannel
+  status                ConversationStatus         @default(OPEN)
+  attentionState        ConversationAttentionState @default(NONE) @map("attention_state")
+  subject               String?                    @db.VarChar(200)
+  participantName       String                     @map("participant_name") @db.VarChar(160)
+  participantCompany    String?                    @map("participant_company") @db.VarChar(160)
+  lastMessageAt         DateTime?                  @map("last_message_at") @db.Timestamptz(3)
+  unreadCount           Int                        @default(0) @map("unread_count")
+  createdAt             DateTime                   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workspace             Workspace                  @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  lead                  Lead?                      @relation(fields: [leadId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  createdByMembership   Membership?                @relation(fields: [createdByMembershipId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  messages              Message[]
+  followUps             FollowUp[]
+  aiOperations          AIOperation[]
+  approvals             ApprovalRequest[]
+  activityEvents        ActivityEvent[]
+
+  @@unique([id, organizationId, workspaceId], map: "conversations_id_tenant_key")
+  @@index([organizationId, workspaceId, createdAt], map: "conversations_tenant_created_at_idx")
+  @@index([organizationId, workspaceId, status, updatedAt], map: "conversations_tenant_status_updated_at_idx")
+  @@index([organizationId, workspaceId, leadId], map: "conversations_tenant_lead_idx")
+  @@index([organizationId, createdByMembershipId], map: "conversations_tenant_creator_idx")
+  @@map("conversations")
+}
+
+model Message {
+  id                 String            @id @default(uuid()) @db.Uuid
+  organizationId     String            @map("organization_id") @db.Uuid
+  workspaceId        String            @map("workspace_id") @db.Uuid
+  conversationId     String            @map("conversation_id") @db.Uuid
+  senderMembershipId String?           @map("sender_membership_id") @db.Uuid
+  direction          MessageDirection
+  senderType         MessageSenderType @map("sender_type")
+  content            String            @db.VarChar(10000)
+  status             MessageStatus     @default(SENT)
+  channel            ConversationChannel?
+  provider           CommunicationProvider?
+  providerMessageId  String?           @map("provider_message_id") @db.VarChar(200)
+  idempotencyKey     String?           @map("idempotency_key") @db.VarChar(200)
+  submittedAt        DateTime?         @map("submitted_at") @db.Timestamptz(3)
+  deliveredAt        DateTime?         @map("delivered_at") @db.Timestamptz(3)
+  failedAt           DateTime?         @map("failed_at") @db.Timestamptz(3)
+  failureCode        String?           @map("failure_code") @db.VarChar(120)
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  conversation       Conversation      @relation(fields: [conversationId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  senderMembership   Membership?       @relation(fields: [senderMembershipId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  outboxEvents       OutboxEvent[]
+
+  @@unique([id, organizationId, workspaceId], map: "messages_id_tenant_key")
+  @@index([organizationId, workspaceId, conversationId, createdAt], map: "messages_tenant_conversation_created_at_idx")
+  @@index([organizationId, senderMembershipId], map: "messages_tenant_sender_idx")
+  @@unique([organizationId, workspaceId, idempotencyKey], map: "messages_tenant_idempotency_key")
+  @@index([organizationId, workspaceId, provider, providerMessageId], map: "messages_tenant_provider_message_idx")
+  @@map("messages")
+}
+
+model OutboxEvent {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  workspaceId    String            @map("workspace_id") @db.Uuid
+  messageId      String?           @map("message_id") @db.Uuid
+  workflowExecutionId String?      @map("workflow_execution_id") @db.Uuid
+  eventType      OutboxEventType   @map("event_type")
+  status         OutboxEventStatus @default(PENDING)
+  idempotencyKey String            @map("idempotency_key") @db.VarChar(200)
+  payload        Json
+  attempts       Int               @default(0)
+  maxAttempts    Int               @default(3) @map("max_attempts")
+  nextAttemptAt  DateTime          @default(now()) @map("next_attempt_at") @db.Timestamptz(3)
+  lockedAt       DateTime?         @map("locked_at") @db.Timestamptz(3)
+  lockToken      String?           @map("lock_token") @db.Uuid
+  lastErrorCode  String?           @map("last_error_code") @db.VarChar(120)
+  completedAt    DateTime?         @map("completed_at") @db.Timestamptz(3)
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workspace      Workspace         @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  message        Message?          @relation(fields: [messageId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  workflowExecution WorkflowExecution? @relation(fields: [workflowExecutionId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId, workspaceId, eventType, idempotencyKey], map: "outbox_events_tenant_type_idempotency_key")
+  @@index([status, nextAttemptAt, createdAt], map: "outbox_events_dispatch_idx")
+  @@index([organizationId, workspaceId, createdAt], map: "outbox_events_tenant_created_at_idx")
+  @@map("outbox_events")
+}
+
+// Process liveness only; no tenant payloads or credentials are stored here.
+// One row is retained per worker process so a missed heartbeat is observable.
+model WorkerHeartbeat {
+  instanceId   String    @id @map("instance_id") @db.Uuid
+  startedAt    DateTime  @default(now()) @map("started_at") @db.Timestamptz(3)
+  heartbeatAt  DateTime  @map("heartbeat_at") @db.Timestamptz(3)
+  inFlightSince DateTime? @map("in_flight_since") @db.Timestamptz(3)
+  consecutiveErrors Int @default(0) @map("consecutive_errors")
+  stoppedAt    DateTime? @map("stopped_at") @db.Timestamptz(3)
+
+  @@index([stoppedAt, heartbeatAt], map: "worker_heartbeats_liveness_idx")
+  @@map("worker_heartbeats")
+}
+
+model ProviderConfiguration {
+  id                     String                      @id @default(uuid()) @db.Uuid
+  organizationId         String                      @map("organization_id") @db.Uuid
+  workspaceId            String                      @map("workspace_id") @db.Uuid
+  channel                ConversationChannel
+  provider               CommunicationProvider
+  status                 ProviderConfigurationStatus @default(INACTIVE)
+  publicReference        String                      @unique(map: "provider_configurations_public_reference_key") @map("public_reference") @db.VarChar(120)
+  configurationReference String?                     @map("configuration_reference") @db.VarChar(240)
+  createdAt              DateTime                    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workspace              Workspace                   @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  webhookEvents          ProviderWebhookEvent[]
+
+  @@unique([organizationId, workspaceId, channel, provider], map: "provider_configurations_tenant_channel_provider_key")
+  @@unique([id, organizationId, workspaceId], map: "provider_configurations_id_tenant_key")
+  @@index([organizationId, workspaceId, status], map: "provider_configurations_tenant_status_idx")
+  @@map("provider_configurations")
+}
+
+model ProviderWebhookEvent {
+  id                      String                   @id @default(uuid()) @db.Uuid
+  organizationId          String                   @map("organization_id") @db.Uuid
+  workspaceId             String                   @map("workspace_id") @db.Uuid
+  providerConfigurationId String                   @map("provider_configuration_id") @db.Uuid
+  providerEventId         String                   @map("provider_event_id") @db.VarChar(200)
+  eventType               ProviderWebhookEventType @map("event_type")
+  receivedAt              DateTime                 @default(now()) @map("received_at") @db.Timestamptz(3)
+  workspace               Workspace                @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  providerConfiguration   ProviderConfiguration    @relation(fields: [providerConfigurationId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([providerConfigurationId, providerEventId], map: "provider_webhook_events_provider_event_key")
+  @@index([organizationId, workspaceId, receivedAt], map: "provider_webhook_events_tenant_received_at_idx")
+  @@map("provider_webhook_events")
+}
+
+model FollowUp {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  workspaceId    String            @map("workspace_id") @db.Uuid
+  leadId         String?           @map("lead_id") @db.Uuid
+  conversationId String?           @map("conversation_id") @db.Uuid
+  title          String?           @db.VarChar(160)
+  description    String?           @db.VarChar(2000)
+  type           FollowUpType?
+  state          FollowUpState     @default(PENDING)
+  priority       LeadPriority      @default(MEDIUM)
+  dueAt          DateTime?         @map("due_at") @db.Timestamptz(3)
+  completedAt    DateTime?         @map("completed_at") @db.Timestamptz(3)
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workspace      Workspace         @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  lead           Lead?             @relation(fields: [leadId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  conversation   Conversation?     @relation(fields: [conversationId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  aiOperations   AIOperation[]
+  approvals      ApprovalRequest[]
+  activityEvents ActivityEvent[]
+
+  @@unique([id, organizationId, workspaceId], map: "follow_ups_id_tenant_key")
+  @@index([organizationId, workspaceId, createdAt], map: "follow_ups_tenant_created_at_idx")
+  @@index([organizationId, workspaceId, state, dueAt], map: "follow_ups_tenant_state_due_at_idx")
+  @@index([organizationId, workspaceId, leadId], map: "follow_ups_tenant_lead_idx")
+  @@index([organizationId, workspaceId, conversationId], map: "follow_ups_tenant_conversation_idx")
+  @@map("follow_ups")
+}
+
+model Workflow {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  workspaceId    String            @map("workspace_id") @db.Uuid
+  name           String            @default("Untitled workflow") @db.VarChar(160)
+  description    String            @default("") @db.VarChar(1000)
+  status         WorkflowStatus    @default(DRAFT)
+  triggerType    WorkflowTriggerType @default(MANUAL) @map("trigger_type")
+  actionType     WorkflowActionType @default(DRY_RUN_LOG) @map("action_type")
+  currentVersion Int               @default(1) @map("current_version")
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workspace      Workspace         @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  aiOperations   AIOperation[]
+  approvals      ApprovalRequest[]
+  activityEvents ActivityEvent[]
+  policy         Policy?
+  executions     WorkflowExecution[]
+  versions       WorkflowDefinitionVersion[]
+
+  @@unique([id, organizationId, workspaceId], map: "workflows_id_tenant_key")
+  @@index([organizationId, workspaceId, createdAt], map: "workflows_tenant_created_at_idx")
+  @@map("workflows")
+}
+
+// Immutable snapshots. Executions created after this foundation pin one exact version.
+model WorkflowDefinitionVersion {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @map("organization_id") @db.Uuid
+  workspaceId    String              @map("workspace_id") @db.Uuid
+  workflowId     String              @map("workflow_id") @db.Uuid
+  version        Int
+  name           String              @db.VarChar(160)
+  description    String              @db.VarChar(1000)
+  triggerType    WorkflowTriggerType @map("trigger_type")
+  actionType     WorkflowActionType  @map("action_type")
+  policyMode     PolicyMode          @map("policy_mode")
+  policyVersion  Int                 @map("policy_version")
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  workflow       Workflow            @relation(fields: [workflowId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  executions     WorkflowExecution[]
+
+  @@unique([id, organizationId, workspaceId], map: "workflow_definition_versions_id_tenant_key")
+  @@unique([workflowId, version], map: "workflow_definition_versions_number_key")
+  @@index([organizationId, workspaceId, workflowId, version], map: "workflow_definition_versions_tenant_version_idx")
+  @@map("workflow_definition_versions")
+}
+
+model AIOperation {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  workspaceId    String            @map("workspace_id") @db.Uuid
+  leadId         String?           @map("lead_id") @db.Uuid
+  conversationId String?           @map("conversation_id") @db.Uuid
+  followUpId     String?           @map("follow_up_id") @db.Uuid
+  workflowId     String?           @map("workflow_id") @db.Uuid
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workspace      Workspace         @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  lead           Lead?             @relation(fields: [leadId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  conversation   Conversation?     @relation(fields: [conversationId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  followUp       FollowUp?         @relation(fields: [followUpId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  workflow       Workflow?         @relation(fields: [workflowId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  approvals      ApprovalRequest[]
+  activityEvents ActivityEvent[]
+
+  @@unique([id, organizationId, workspaceId], map: "ai_operations_id_tenant_key")
+  @@index([organizationId, workspaceId, createdAt], map: "ai_operations_tenant_created_at_idx")
+  @@index([organizationId, workspaceId, leadId], map: "ai_operations_tenant_lead_idx")
+  @@index([organizationId, workspaceId, conversationId], map: "ai_operations_tenant_conversation_idx")
+  @@index([organizationId, workspaceId, followUpId], map: "ai_operations_tenant_follow_up_idx")
+  @@index([organizationId, workspaceId, workflowId], map: "ai_operations_tenant_workflow_idx")
+  @@map("ai_operations")
+}
+
+model ApprovalRequest {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  workspaceId    String          @map("workspace_id") @db.Uuid
+  aiOperationId  String?         @map("ai_operation_id") @db.Uuid
+  workflowId     String?         @map("workflow_id") @db.Uuid
+  leadId         String?         @map("lead_id") @db.Uuid
+  conversationId String?         @map("conversation_id") @db.Uuid
+  followUpId     String?         @map("follow_up_id") @db.Uuid
+  workflowExecutionId String?   @unique @map("workflow_execution_id") @db.Uuid
+  status         ApprovalStatus @default(PENDING)
+  reason         String?        @db.VarChar(500)
+  expiresAt      DateTime?      @map("expires_at") @db.Timestamptz(3)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workspace      Workspace       @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  aiOperation    AIOperation?    @relation(fields: [aiOperationId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  workflow       Workflow?       @relation(fields: [workflowId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  lead           Lead?           @relation(fields: [leadId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  conversation   Conversation?   @relation(fields: [conversationId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  followUp       FollowUp?       @relation(fields: [followUpId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  activityEvents ActivityEvent[]
+  workflowExecution WorkflowExecution? @relation(fields: [workflowExecutionId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  decision       ApprovalDecision?
+
+  @@unique([id, organizationId, workspaceId], map: "approval_requests_id_tenant_key")
+  @@unique([workflowExecutionId, organizationId, workspaceId], map: "approval_requests_execution_tenant_key")
+  @@index([organizationId, workspaceId, createdAt], map: "approval_requests_tenant_created_at_idx")
+  @@index([organizationId, workspaceId, aiOperationId], map: "approval_requests_tenant_ai_operation_idx")
+  @@index([organizationId, workspaceId, workflowId], map: "approval_requests_tenant_workflow_idx")
+  @@index([status, expiresAt], map: "approval_requests_expiry_idx")
+  @@map("approval_requests")
+}
+
+model ActivityEvent {
+  id                String           @id @default(uuid()) @db.Uuid
+  organizationId    String           @map("organization_id") @db.Uuid
+  workspaceId       String           @map("workspace_id") @db.Uuid
+  actorMembershipId String?          @map("actor_membership_id") @db.Uuid
+  leadId            String?          @map("lead_id") @db.Uuid
+  conversationId    String?          @map("conversation_id") @db.Uuid
+  followUpId        String?          @map("follow_up_id") @db.Uuid
+  aiOperationId     String?          @map("ai_operation_id") @db.Uuid
+  workflowId        String?          @map("workflow_id") @db.Uuid
+  approvalRequestId String?          @map("approval_request_id") @db.Uuid
+  actorType         ActivityActorType @map("actor_type")
+  eventType         ActivityEventType @map("event_type")
+  resourceType      String?           @map("resource_type") @db.VarChar(80)
+  resourceId        String?           @map("resource_id") @db.Uuid
+  action            String            @db.VarChar(120)
+  summary           String            @db.VarChar(500)
+  metadata          Json?
+  occurredAt        DateTime         @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  workspace         Workspace        @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  actorMembership   Membership?      @relation(fields: [actorMembershipId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  lead              Lead?            @relation(fields: [leadId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  conversation      Conversation?    @relation(fields: [conversationId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  followUp          FollowUp?        @relation(fields: [followUpId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  aiOperation       AIOperation?     @relation(fields: [aiOperationId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  workflow          Workflow?        @relation(fields: [workflowId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  approvalRequest   ApprovalRequest? @relation(fields: [approvalRequestId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([organizationId, workspaceId, occurredAt], map: "activity_events_tenant_occurred_at_idx")
+  @@index([organizationId, actorMembershipId, occurredAt], map: "activity_events_actor_occurred_at_idx")
+  @@index([organizationId, workspaceId, eventType, occurredAt], map: "activity_events_tenant_type_occurred_at_idx")
+  @@index([organizationId, workspaceId, resourceType, resourceId], map: "activity_events_tenant_resource_idx")
+  @@map("activity_events")
+}
+
+// One deterministic, versioned policy per workflow in this first dry-run slice.
+model Policy {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  workspaceId    String      @map("workspace_id") @db.Uuid
+  workflowId     String      @unique @map("workflow_id") @db.Uuid
+  mode           PolicyMode  @default(REQUIRE_APPROVAL)
+  version        Int         @default(1)
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workspace      Workspace   @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  workflow       Workflow    @relation(fields: [workflowId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  evaluations    PolicyEvaluation[]
+
+  @@unique([id, organizationId, workspaceId], map: "policies_id_tenant_key")
+  @@unique([workflowId, organizationId, workspaceId], map: "policies_workflow_tenant_key")
+  @@index([organizationId, workspaceId, updatedAt], map: "policies_tenant_updated_at_idx")
+  @@map("policies")
+}
+
+model WorkflowExecution {
+  id             String                  @id @default(uuid()) @db.Uuid
+  organizationId String                  @map("organization_id") @db.Uuid
+  workspaceId    String                  @map("workspace_id") @db.Uuid
+  workflowId     String                  @map("workflow_id") @db.Uuid
+  definitionVersionId String?            @map("definition_version_id") @db.Uuid
+  initiatedByMembershipId String?        @map("initiated_by_membership_id") @db.Uuid
+  idempotencyKey String                  @map("idempotency_key") @db.VarChar(120)
+  status         WorkflowExecutionStatus @default(QUEUED)
+  startedAt      DateTime?               @map("started_at") @db.Timestamptz(3)
+  completedAt    DateTime?               @map("completed_at") @db.Timestamptz(3)
+  createdAt      DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workspace      Workspace               @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  workflow       Workflow                @relation(fields: [workflowId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  definitionVersion WorkflowDefinitionVersion? @relation(fields: [definitionVersionId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  initiatedByMembership Membership?      @relation(fields: [initiatedByMembershipId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  evaluation     PolicyEvaluation?
+  approval       ApprovalRequest?
+  steps          ExecutionStep[]
+  outboxEvents   OutboxEvent[]
+  notification   Notification?
+
+  @@unique([id, organizationId, workspaceId], map: "workflow_executions_id_tenant_key")
+  @@unique([organizationId, workspaceId, idempotencyKey], map: "workflow_executions_tenant_idempotency_key")
+  @@index([organizationId, workspaceId, status, createdAt], map: "workflow_executions_tenant_status_created_at_idx")
+  @@index([organizationId, workspaceId, workflowId, createdAt], map: "workflow_executions_tenant_workflow_created_at_idx")
+  @@index([organizationId, initiatedByMembershipId, createdAt], map: "workflow_executions_initiator_created_at_idx")
+  @@index([organizationId, workspaceId, definitionVersionId], map: "workflow_executions_definition_version_idx")
+  @@map("workflow_executions")
+}
+
+// An internal, persisted delivery to one verified organization membership.
+// It is not an email, push, or external communication claim.
+model Notification {
+  id                    String            @id @default(uuid()) @db.Uuid
+  organizationId        String            @map("organization_id") @db.Uuid
+  workspaceId           String            @map("workspace_id") @db.Uuid
+  recipientMembershipId String            @map("recipient_membership_id") @db.Uuid
+  workflowExecutionId   String            @unique @map("workflow_execution_id") @db.Uuid
+  title                 String            @db.VarChar(160)
+  body                  String            @db.VarChar(1000)
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  readAt                DateTime?         @map("read_at") @db.Timestamptz(3)
+  workspace             Workspace         @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  recipientMembership   Membership        @relation(fields: [recipientMembershipId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  workflowExecution     WorkflowExecution @relation(fields: [workflowExecutionId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([id, organizationId, workspaceId], map: "notifications_id_tenant_key")
+  @@unique([workflowExecutionId, organizationId, workspaceId], map: "notifications_execution_tenant_key")
+  @@index([organizationId, workspaceId, recipientMembershipId, createdAt], map: "notifications_recipient_created_at_idx")
+  @@index([organizationId, workspaceId, recipientMembershipId, readAt], map: "notifications_recipient_read_at_idx")
+  @@map("notifications")
+}
+
+model PolicyEvaluation {
+  id             String                 @id @default(uuid()) @db.Uuid
+  organizationId String                 @map("organization_id") @db.Uuid
+  workspaceId    String                 @map("workspace_id") @db.Uuid
+  policyId       String                 @map("policy_id") @db.Uuid
+  executionId    String                 @unique @map("execution_id") @db.Uuid
+  policyVersion  Int                    @map("policy_version")
+  result         PolicyEvaluationResult
+  evaluatedAt    DateTime               @default(now()) @map("evaluated_at") @db.Timestamptz(3)
+  workspace      Workspace              @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  policy         Policy                  @relation(fields: [policyId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  execution      WorkflowExecution      @relation(fields: [executionId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([organizationId, workspaceId, evaluatedAt], map: "policy_evaluations_tenant_evaluated_at_idx")
+  @@unique([executionId, organizationId, workspaceId], map: "policy_evaluations_execution_tenant_key")
+  @@map("policy_evaluations")
+}
+
+model ApprovalDecision {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  workspaceId    String          @map("workspace_id") @db.Uuid
+  requestId      String          @unique @map("request_id") @db.Uuid
+  actorMembershipId String       @map("actor_membership_id") @db.Uuid
+  decision       ApprovalStatus
+  note           String?         @db.VarChar(1000)
+  decidedAt      DateTime        @default(now()) @map("decided_at") @db.Timestamptz(3)
+  workspace      Workspace       @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  request        ApprovalRequest @relation(fields: [requestId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+  actorMembership Membership     @relation(fields: [actorMembershipId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([organizationId, workspaceId, decidedAt], map: "approval_decisions_tenant_decided_at_idx")
+  @@unique([requestId, organizationId, workspaceId], map: "approval_decisions_request_tenant_key")
+  @@map("approval_decisions")
+}
+
+model ExecutionStep {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @map("organization_id") @db.Uuid
+  workspaceId    String              @map("workspace_id") @db.Uuid
+  executionId    String              @map("execution_id") @db.Uuid
+  stepNumber     Int                 @map("step_number")
+  actionType     WorkflowActionType  @map("action_type")
+  status         ExecutionStepStatus @default(PENDING)
+  startedAt      DateTime?           @map("started_at") @db.Timestamptz(3)
+  completedAt    DateTime?           @map("completed_at") @db.Timestamptz(3)
+  workspace      Workspace           @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+  execution      WorkflowExecution   @relation(fields: [executionId, organizationId, workspaceId], references: [id, organizationId, workspaceId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([executionId, stepNumber], map: "execution_steps_execution_number_key")
+  @@index([organizationId, workspaceId, executionId], map: "execution_steps_tenant_execution_idx")
+  @@map("execution_steps")
+}
+
+model WorkspaceSettings {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  workspaceId    String    @map("workspace_id") @db.Uuid
+  website        String?   @db.VarChar(2048)
+  industry       String?   @db.VarChar(80)
+  companySize    String?   @map("company_size") @db.VarChar(20)
+  timezone       String?   @db.VarChar(100)
+  responseExpectation String? @map("response_expectation") @db.VarChar(40)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workspace      Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([workspaceId, organizationId], map: "workspace_settings_workspace_key")
+  @@index([organizationId, workspaceId], map: "workspace_settings_tenant_idx")
+  @@map("workspace_settings")
+}

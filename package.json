@@ -1,0 +1,43 @@
+{
+  "name": "ai-operations-platform",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "dev": "pnpm --filter @aop/types build && pnpm --filter @aop/api build:dev && node scripts/dev.mjs",
+    "postinstall": "prisma generate --schema database/schema.prisma",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "vitest run",
+    "test:browser": "playwright test",
+    "test:db:integration": "vitest run tests/database-integration.test.ts",
+    "test:auth:integration": "vitest run tests/auth-database-integration.test.ts",
+    "test:authorization:integration": "vitest run tests/authorization-database-integration.test.ts",
+    "test:leads:integration": "pnpm --filter @aop/types build && pnpm --filter @aop/api build && vitest run apps/api/tests/leads-api.integration.test.ts",
+    "test:tenant-conversations:integration": "pnpm --filter @aop/types build && pnpm --filter @aop/api build && vitest run apps/api/tests/tenant-conversations.integration.test.ts",
+    "db:generate": "prisma generate --schema database/schema.prisma",
+    "db:validate": "prisma validate --schema database/schema.prisma",
+    "db:migrate:deploy": "prisma migrate deploy --schema database/schema.prisma",
+    "db:migrate:status": "prisma migrate status --schema database/schema.prisma",
+    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm db:validate && pnpm build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.35.0",
+    "@next/eslint-plugin-next": "^15.5.2",
+    "@playwright/test": "^1.63.0",
+    "@prisma/client": "^6.15.0",
+    "@types/node": "^24.3.0",
+    "eslint": "^9.35.0",
+    "prettier": "^3.6.2",
+    "prisma": "^6.15.0",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.42.0",
+    "vitest": "^3.2.4"
+  }
+}

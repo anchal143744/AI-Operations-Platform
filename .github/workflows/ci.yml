@@ -1,0 +1,51 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: aop_ci_test
+          POSTGRES_USER: aop_ci_test
+          POSTGRES_PASSWORD: disposable_ci_only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U aop_ci_test -d aop_ci_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://aop_ci_test:disposable_ci_only@localhost:5432/aop_ci_test
+      TEST_DATABASE_URL: postgresql://aop_ci_test:disposable_ci_only@localhost:5432/aop_ci_test
+      RUN_DATABASE_INTEGRATION_TESTS: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.19.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm db:validate
+      - run: pnpm build
+      - run: pnpm db:migrate:deploy
+      - run: pnpm db:migrate:status
+      - run: pnpm test
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Generate disposable browser-test secret
+        run: echo "AUTH_TOKEN_PEPPER=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Browser release gate
+        run: pnpm test:browser
+        env:
+          AOP_E2E_DISPOSABLE_DB: "true"
+          APP_ORIGIN: http://localhost:3000
+          NEXT_PUBLIC_API_ORIGIN: http://localhost:4000
+          AUTH_EMAIL_TRANSPORT: development
