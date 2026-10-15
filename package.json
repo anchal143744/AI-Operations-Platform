@@ -22,7 +22,7 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "pnpm -r --if-present typecheck",
+    "typecheck": "pnpm --filter @aop/types build && pnpm -r --if-present typecheck",
     "test": "vitest run",
     "test:browser": "playwright test",
     "test:browser:local": "node --env-file=.env scripts/local-browser-e2e.mjs",
