@@ -8,6 +8,8 @@ overrides:
   proxy-addr: 2.0.8
 
 allowBuilds:
+  # The root postinstall runs prisma generate explicitly after install.
+  "@prisma/client": false
   "@prisma/engines": false
   esbuild: true
   prisma: false
