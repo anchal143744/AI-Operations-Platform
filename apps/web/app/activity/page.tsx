@@ -5,7 +5,7 @@ import { AppShell } from "../../components/app-shell/app-shell";
 export const metadata: Metadata = {
   title: "Activity & Audit | AI Operations Platform",
   description:
-    "Frontend-only operational activity and audit workspace for traceable platform events.",
+    "Inspect persisted workspace activity for operational and workflow events.",
 };
 
 export default function ActivityRoute() {

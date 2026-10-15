@@ -10,6 +10,7 @@ test-results/
 .env
 .env.*
 !.env.example
+.local-production/
 *.log
 *.tsbuildinfo
 .DS_Store

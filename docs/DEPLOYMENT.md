@@ -83,17 +83,25 @@ target first; do **not** start a separate `pnpm dev` session for the test. Use
 `AUTH_EMAIL_TRANSPORT=development` only in local development so the UI can
 show its single-use verification code. Install the Playwright Chromium browser
 with `pnpm exec playwright install chromium` on an approved test host, then run
-`pnpm test:browser`. The runner starts and stops its own `pnpm dev` stack and
+`pnpm test:browser`. On the confirmed local `ai_operations` instance,
+`pnpm test:browser:local` safely creates, migrates, and removes a random
+disposable test schema around that browser run. The runner starts and stops
+its own `pnpm dev` stack and
 refuses to reuse occupied web/API ports, so it cannot silently test a service
 pointed at another database. Optional `AOP_E2E_WEB_ORIGIN` and
 `AOP_E2E_API_ORIGIN` select the two local origins. Do not point this suite at
 staging, production, or a personal development database; it does not clean up
-accounts or records automatically. No browser result is implied by adding the
-suite.
+accounts or records automatically. The isolated local-production runner
+passed all six Chromium release-gate tests on 2026-10-14. No hosted browser
+test or deployment has been verified. See
+`docs/LOCAL-PRODUCTION-RUNBOOK.md` and `docs/RELEASE-READINESS-REPORT.md`.
 
 ## Current
 
-Docker Compose supplies local PostgreSQL and Redis. GitHub Actions contains a foundation validation job. No hosted environment, image publishing, backup, or CD is configured.
+The development Compose file defines PostgreSQL and Redis, but the current
+application worker uses PostgreSQL outbox rows, not Redis. GitHub Actions
+configures a disposable PostgreSQL service and a Chromium release gate. No
+hosted environment, image publishing, managed backup, or CD is configured.
 
 ## Planned environments
 

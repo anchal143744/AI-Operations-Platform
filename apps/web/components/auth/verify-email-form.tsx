@@ -17,8 +17,10 @@ import {
   type AuthNoticeValue,
 } from "./auth-elements";
 import { VerificationCodeInput } from "./verification-code-input";
+import { useAuthFormReady } from "./use-auth-form-ready";
 
 export function VerifyEmailForm({ verified = false }: { verified?: boolean }) {
+  const formReady = useAuthFormReady();
   const [verificationComplete, setVerificationComplete] = useState(verified);
   const [digits, setDigits] = useState(() =>
     Array.from({ length: 6 }, () => ""),
@@ -114,6 +116,7 @@ export function VerifyEmailForm({ verified = false }: { verified?: boolean }) {
       />
 
       <form
+        method="post"
         className="auth-form"
         noValidate
         aria-busy={isBusy}
@@ -123,7 +126,7 @@ export function VerifyEmailForm({ verified = false }: { verified?: boolean }) {
         <VerificationCodeInput
           value={digits}
           error={error}
-          disabled={isBusy}
+          disabled={isBusy || !formReady}
           onChange={(nextDigits) => {
             setDigits(nextDigits);
             if (error) setError(validateVerificationCode(nextDigits.join("")));
@@ -133,7 +136,7 @@ export function VerifyEmailForm({ verified = false }: { verified?: boolean }) {
         <Button
           className="auth-submit"
           type="submit"
-          disabled={isBusy}
+          disabled={isBusy || !formReady}
           aria-describedby="verification-status"
         >
           {operation === "verify" ? (
@@ -150,7 +153,7 @@ export function VerifyEmailForm({ verified = false }: { verified?: boolean }) {
           className="auth-secondary-button"
           variant="outline"
           type="button"
-          disabled={isBusy}
+          disabled={isBusy || !formReady}
           aria-describedby="verification-status"
           onClick={handleResend}
         >

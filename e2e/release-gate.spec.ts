@@ -21,13 +21,24 @@ test.beforeAll(() => {
   }
 });
 
-function monitorBrowser(page: Page, expectedFailureUrl?: string) {
+function monitorBrowser(
+  page: Page,
+  expectedFailureUrl?: string,
+  expectSignedOutSession = false,
+) {
   const errors: string[] = [];
   let expectedFailures = 0;
+  let signedOutResponses = 0;
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
     if (message.type() !== "error") return;
     if (expectedFailureUrl && message.text().includes("503")) return;
+    if (
+      expectSignedOutSession &&
+      message.text() ===
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    )
+      return;
     errors.push(message.text());
   });
   page.on("requestfailed", (request) => {
@@ -38,7 +49,15 @@ function monitorBrowser(page: Page, expectedFailureUrl?: string) {
     errors.push(`Network request failed: ${request.url()}`);
   });
   page.on("response", (response) => {
-    if (response.status() < 500) return;
+    if (
+      expectSignedOutSession &&
+      response.status() === 401 &&
+      new URL(response.url()).pathname === "/auth/session"
+    ) {
+      signedOutResponses += 1;
+      return;
+    }
+    if (response.status() < 400) return;
     if (
       expectedFailureUrl &&
       response.url() === expectedFailureUrl &&
@@ -52,6 +71,7 @@ function monitorBrowser(page: Page, expectedFailureUrl?: string) {
   return () => {
     expect(errors, errors.join("\n")).toEqual([]);
     if (expectedFailureUrl) expect(expectedFailures).toBe(1);
+    if (expectSignedOutSession) expect(signedOutResponses).toBeGreaterThan(0);
   };
 }
 
@@ -65,7 +85,7 @@ async function registerAndOnboard(page: Page) {
   await page.getByLabel("Last name").fill("Gate");
   await page.getByLabel("Work email").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
-  await page.getByLabel("Confirm password").fill(password);
+  await page.getByLabel("Confirm password", { exact: true }).fill(password);
   await page.getByRole("checkbox", { name: /I agree/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
   const codeNotice = page.getByText(
@@ -75,12 +95,19 @@ async function registerAndOnboard(page: Page) {
   const code = (await codeNotice.textContent())?.match(/\b\d{6}\b/)?.[0];
   expect(code).toBeTruthy();
   await page.getByRole("link", { name: "Continue to verification" }).click();
+  // The code inputs are server-rendered; wait for their client handlers before
+  // typing, otherwise early keystrokes can land in the static first input.
+  await page.waitForLoadState("networkidle");
+  await page
+    .getByRole("textbox", { name: "Verification code digit 1 of 6" })
+    .click();
+  await page.keyboard.type(code!, { delay: 75 });
   for (const [index, digit] of [...code!].entries()) {
-    await page
-      .getByRole("textbox", {
+    await expect(
+      page.getByRole("textbox", {
         name: `Verification code digit ${index + 1} of 6`,
-      })
-      .fill(digit);
+      }),
+    ).toHaveValue(digit);
   }
   await page.getByRole("button", { name: "Verify email" }).click();
   await page.getByRole("link", { name: "Continue to onboarding" }).click();
@@ -89,14 +116,15 @@ async function registerAndOnboard(page: Page) {
   await page.getByLabel("Industry").selectOption("software");
   await page.getByLabel("Company size").selectOption("1–10");
   await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("radio", { name: /Founder \/ Owner/ }).check();
+  await page.getByText("Founder / Owner", { exact: true }).click();
+  await expect(
+    page.getByRole("radio", { name: /Founder \/ Owner/ }),
+  ).toBeChecked();
   await page.getByRole("button", { name: "Continue" }).click();
-  await page
-    .getByRole("radio", { name: /Respond to enquiries faster/ })
-    .check();
+  await page.getByText("Respond to enquiries faster", { exact: true }).click();
   await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("checkbox", { name: "Website enquiries" }).check();
-  await page.getByRole("radio", { name: "Founder / Owner" }).check();
+  await page.getByText("Website enquiries", { exact: true }).click();
+  await page.getByText("Founder / Owner", { exact: true }).click();
   await page
     .getByLabel("How quickly do you aim to respond?")
     .selectOption("same-day");
@@ -110,7 +138,7 @@ async function registerAndOnboard(page: Page) {
   await page.getByRole("menuitem", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.getByLabel("Work email").fill(email);
-  await page.getByLabel("Password").fill(password);
+  await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
 }
@@ -188,7 +216,7 @@ test("authenticated workflow, approval, worker, notification, and audit persist"
   await page.goto("/workflows");
   await expect(
     page.locator("article.controlled-item").filter({ hasText: name }),
-  ).toContainText("Definition v2");
+  ).toContainText("Definition v3");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
   expect(
@@ -199,8 +227,54 @@ test("authenticated workflow, approval, worker, notification, and audit persist"
   assertNoBrowserErrors();
 });
 
-test("signed-out access does not expose workflow data", async ({ page }) => {
+test("lead and conversation records persist across reload in the selected workspace", async ({
+  page,
+}) => {
   const assertNoBrowserErrors = monitorBrowser(page);
+  await registerAndOnboard(page);
+  const marker = randomUUID().slice(0, 8);
+  const leadName = `Release lead ${marker}`;
+  const participantName = `Release contact ${marker}`;
+
+  await page.goto("/leads");
+  await page.getByRole("button", { name: "Add lead" }).click();
+  const leadForm = page.locator("form.lead-create-form");
+  await leadForm.getByLabel("Lead name").fill(leadName);
+  await leadForm.getByLabel("Company").fill("Disposable release test");
+  await leadForm.getByRole("button", { name: "Create lead" }).click();
+  const leadList = page.getByRole("list", {
+    name: "Leads in selected workspace",
+  });
+  await expect(
+    leadList.getByRole("link", { name: new RegExp(leadName) }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    leadList.getByRole("link", { name: new RegExp(leadName) }),
+  ).toBeVisible();
+  await leadList.getByRole("link", { name: new RegExp(leadName) }).click();
+  await expect(page.getByRole("heading", { name: leadName })).toBeVisible();
+
+  await page.goto("/inbox");
+  await page.getByRole("button", { name: "New conversation" }).click();
+  await page.getByLabel("Participant name").fill(participantName);
+  await page.getByLabel("Subject").fill("Disposable persistence check");
+  await page.getByRole("button", { name: "Create conversation" }).click();
+  const conversationLink = page.getByRole("link", {
+    name: new RegExp(participantName),
+  });
+  await expect(conversationLink).toBeVisible();
+  await page.reload();
+  await expect(conversationLink).toBeVisible();
+  await conversationLink.click();
+  await expect(
+    page.getByRole("heading", { name: participantName }),
+  ).toBeVisible();
+  assertNoBrowserErrors();
+});
+
+test("signed-out access does not expose workflow data", async ({ page }) => {
+  const assertNoBrowserErrors = monitorBrowser(page, undefined, true);
   await page.goto("/workflows");
   await expect(
     page.getByRole("heading", { name: "Sign in to continue" }),
@@ -212,6 +286,73 @@ test("signed-out access does not expose workflow data", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Create draft" })).toHaveCount(
     0,
   );
+  assertNoBrowserErrors();
+});
+
+test("authentication forms cannot submit secrets as GET before hydration", async ({
+  browser,
+}) => {
+  const origin = process.env.AOP_E2E_WEB_ORIGIN ?? "http://localhost:3000";
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  try {
+    const page = await context.newPage();
+    for (const route of [
+      "/login",
+      "/signup",
+      "/verify-email",
+      "/forgot-password",
+      "/reset-password",
+    ]) {
+      await page.goto(`${origin}${route}`);
+      const form = page.locator("form.auth-form");
+      await expect(form).toHaveAttribute("method", "post");
+      await expect(form.locator('button[type="submit"]')).toBeDisabled();
+    }
+  } finally {
+    await context.close();
+  }
+});
+
+test("existing routes render at desktop and mobile without document overflow", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  const assertNoBrowserErrors = monitorBrowser(page);
+  await registerAndOnboard(page);
+  const routes = [
+    "/",
+    "/login",
+    "/signup",
+    "/verify-email",
+    "/forgot-password",
+    "/reset-password",
+    "/onboarding",
+    "/dashboard",
+    "/leads",
+    "/leads/demo-lead-001",
+    "/inbox",
+    "/inbox/demo-conversation-001",
+    "/follow-ups",
+    "/ai-operations",
+    "/workflows",
+    "/approvals",
+    "/activity",
+    "/settings",
+  ];
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+    for (const route of routes) {
+      const response = await page.goto(route);
+      expect(response?.status(), `${route} at ${width}px`).toBe(200);
+      await expect(page.getByRole("main")).toBeVisible();
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+        `${route} overflows at ${width}px`,
+      ).toBe(true);
+    }
+  }
   assertNoBrowserErrors();
 });
 

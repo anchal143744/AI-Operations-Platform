@@ -563,12 +563,12 @@ function CapabilitiesSection() {
       <Container>
         <Reveal className="section-heading split-heading">
           <div>
-            <Badge tone="neutral">V1 capabilities</Badge>
+            <Badge tone="neutral">Product roadmap · Planned capabilities</Badge>
             <h2>The essential system for enquiry execution.</h2>
           </div>
           <p>
-            A focused operating layer for understanding demand, coordinating
-            decisions, and keeping follow-through visible.
+            Workspace records and controlled internal workflows are available.
+            AI analysis, customer delivery, and external automation are planned.
           </p>
         </Reveal>
         <div className="capability-grid">
@@ -723,7 +723,9 @@ function Footer() {
       </Container>
       <Container className="footer-bottom">
         <span>© 2026 AI Operations Platform</span>
-        <span>Foundation preview · No backend connection</span>
+        <span>
+          Workspace-backed foundation · External providers not connected
+        </span>
       </Container>
     </footer>
   );

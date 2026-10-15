@@ -7,6 +7,26 @@ export function isLoopbackOrigin(origin: string): boolean {
   return ["localhost", "127.0.0.1", "[::1]"].includes(new URL(origin).hostname);
 }
 
+/** Opt-in preview for a built, HTTPS-only stack bound to this computer. */
+export function isLocalProductionPreview(
+  environment: NodeJS.ProcessEnv,
+  appOrigin: string,
+): boolean {
+  if (environment.AOP_LOCAL_PRODUCTION !== "true") return false;
+  const origin = new URL(appOrigin);
+  if (
+    environment.NODE_ENV !== "production" ||
+    origin.protocol !== "https:" ||
+    origin.hostname !== "localhost" ||
+    environment.AUTH_EMAIL_TRANSPORT !== "development"
+  ) {
+    throw new Error(
+      "AOP_LOCAL_PRODUCTION requires production mode, HTTPS localhost, and the local preview email transport.",
+    );
+  }
+  return true;
+}
+
 function required(environment: NodeJS.ProcessEnv, name: string): string {
   const value = environment[name]?.trim();
   if (!value) throw new Error(`${name} must be configured.`);
@@ -50,10 +70,15 @@ export class AuthConfig {
     }
 
     this.secureCookies = environment.NODE_ENV === "production";
+    const localProductionPreview = isLocalProductionPreview(
+      environment,
+      this.appOrigin,
+    );
     this.localCodePreviewEnabled =
-      environment.NODE_ENV === "development" &&
-      (environment.AUTH_EMAIL_TRANSPORT ?? "development") === "development" &&
-      isLoopbackOrigin(this.appOrigin);
+      (environment.NODE_ENV === "development" &&
+        (environment.AUTH_EMAIL_TRANSPORT ?? "development") === "development" &&
+        isLoopbackOrigin(this.appOrigin)) ||
+      localProductionPreview;
     this.sessionCookieName = this.secureCookies
       ? "__Host-aop_session"
       : "aop_session";

@@ -5,7 +5,7 @@ import { InboxPage } from "../../components/inbox/inbox-page";
 export const metadata: Metadata = {
   title: "Inbox | AI Operations Platform",
   description:
-    "Frontend-only communication workspace for future customer conversations, review, and operational follow-up.",
+    "Manage workspace conversations with persisted records; external messaging channels are not connected.",
 };
 
 export default function InboxRoute() {

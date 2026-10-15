@@ -106,7 +106,7 @@ export function ConversationCreateForm({
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button disabled={busy}>
+          <Button type="submit" disabled={busy}>
             {busy ? "Creating…" : "Create conversation"}
           </Button>
         </div>

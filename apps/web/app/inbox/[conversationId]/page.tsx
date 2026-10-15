@@ -12,7 +12,7 @@ type ConversationDetailRouteProps = {
 export const metadata: Metadata = {
   title: "Conversation detail | AI Operations Platform",
   description:
-    "Frontend-only demonstration of the AI Operations Platform conversation workspace architecture.",
+    "Review a workspace conversation and its context, or an explicitly labelled demonstration record.",
 };
 
 export default async function ConversationDetailRoute({

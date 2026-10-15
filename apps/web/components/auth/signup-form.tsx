@@ -21,6 +21,7 @@ import {
   type AuthNoticeValue,
 } from "./auth-elements";
 import { PasswordField } from "./password-field";
+import { useAuthFormReady } from "./use-auth-form-ready";
 
 function readSignupInput(form: HTMLFormElement): SignupInput {
   const data = new FormData(form);
@@ -35,6 +36,7 @@ function readSignupInput(form: HTMLFormElement): SignupInput {
 }
 
 export function SignupForm() {
+  const formReady = useAuthFormReady();
   const formRef = useRef<HTMLFormElement>(null);
   const [errors, setErrors] = useState<SignupValidationErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -130,6 +132,7 @@ export function SignupForm() {
 
       <form
         ref={formRef}
+        method="post"
         className="auth-form auth-form-compact"
         noValidate
         aria-busy={isSubmitting}
@@ -143,7 +146,7 @@ export function SignupForm() {
             label="First name"
             autoComplete="given-name"
             required
-            disabled={isSubmitting}
+            disabled={isSubmitting || !formReady}
             error={errors.firstName}
             onBlur={() => validateField("firstName")}
           />
@@ -153,7 +156,7 @@ export function SignupForm() {
             label="Last name"
             autoComplete="family-name"
             required
-            disabled={isSubmitting}
+            disabled={isSubmitting || !formReady}
             error={errors.lastName}
             onBlur={() => validateField("lastName")}
           />
@@ -166,7 +169,7 @@ export function SignupForm() {
           inputMode="email"
           autoComplete="email"
           required
-          disabled={isSubmitting}
+          disabled={isSubmitting || !formReady}
           error={errors.email}
           onBlur={() => validateField("email")}
         />
@@ -176,7 +179,7 @@ export function SignupForm() {
           label="Password"
           autoComplete="new-password"
           error={errors.password}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !formReady}
           showStrength
           onBlur={() => validateField("password")}
         />
@@ -186,7 +189,7 @@ export function SignupForm() {
           label="Confirm password"
           autoComplete="new-password"
           error={errors.confirmPassword}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !formReady}
           helpText="Enter the same password again."
           onBlur={() => validateField("confirmPassword")}
         />
@@ -197,7 +200,7 @@ export function SignupForm() {
               name="consent"
               type="checkbox"
               required
-              disabled={isSubmitting}
+              disabled={isSubmitting || !formReady}
               aria-invalid={Boolean(errors.consent)}
               aria-describedby={errors.consent ? "consent-error" : undefined}
               onChange={() => validateField("consent")}
@@ -218,7 +221,7 @@ export function SignupForm() {
         <Button
           className="auth-submit"
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !formReady}
           aria-describedby="registration-status"
         >
           {isSubmitting ? (

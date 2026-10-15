@@ -21,6 +21,7 @@ import {
   type AuthNoticeValue,
 } from "./auth-elements";
 import { PasswordField } from "./password-field";
+import { useAuthFormReady } from "./use-auth-form-ready";
 
 type SubmissionState = "idle" | "submitting" | "error";
 
@@ -34,6 +35,7 @@ function readLoginInput(form: HTMLFormElement): LoginInput {
 }
 
 export function LoginForm() {
+  const formReady = useAuthFormReady();
   const formRef = useRef<HTMLFormElement>(null);
   const [errors, setErrors] = useState<LoginValidationErrors>({});
   const [submissionState, setSubmissionState] =
@@ -110,6 +112,7 @@ export function LoginForm() {
 
       <form
         ref={formRef}
+        method="post"
         className="auth-form"
         noValidate
         aria-busy={isSubmitting}
@@ -124,7 +127,7 @@ export function LoginForm() {
           inputMode="email"
           autoComplete="email"
           required
-          disabled={isSubmitting}
+          disabled={isSubmitting || !formReady}
           error={errors.email}
           onBlur={() => validateField("email")}
         />
@@ -135,13 +138,17 @@ export function LoginForm() {
           label="Password"
           autoComplete="current-password"
           error={errors.password}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !formReady}
           onBlur={() => validateField("password")}
         />
 
         <div className="form-options">
           <label className="remember-control">
-            <input name="remember" type="checkbox" disabled={isSubmitting} />
+            <input
+              name="remember"
+              type="checkbox"
+              disabled={isSubmitting || !formReady}
+            />
             <span>Remember me</span>
           </label>
           <Link className="auth-inline-action" href="/forgot-password">
@@ -152,7 +159,7 @@ export function LoginForm() {
         <Button
           className="auth-submit"
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !formReady}
           aria-describedby="authentication-status"
         >
           {isSubmitting ? (

@@ -1,10 +1,113 @@
 # AI Operations Platform
 
-Production-oriented foundation for a multi-tenant B2B enquiry-to-execution platform.
+An AI-native B2B operations platform built as a multi-tenant TypeScript
+monorepo. Its verified core journey connects a customer enquiry to a lead,
+conversation, follow-up, controlled workflow, human approval, background
+execution, internal notification, and audit history.
+
+> **Release status:** Verified as a **local production-build portfolio demo**,
+> not deployed or approved for public production. The current workflow actions
+> are dry runs and internal notifications. There is no live AI provider or
+> external customer-messaging provider. See the
+> [release-readiness report](docs/RELEASE-READINESS-REPORT.md).
+
+For a company/portfolio presentation, use the concise
+[case study and demo guide](docs/PORTFOLIO-CASE-STUDY.md). It separates the
+locally verified workflow from planned AI and external-provider work.
+
+## What works today
+
+- Secure signup, email-verification architecture, login, password recovery,
+  server-side sessions, and tenant-scoped role permissions. Local verification
+  uses an explicitly non-delivering, loopback-only preview; production email
+  requires a verified SES sender that is not configured here.
+- Organization/workspace onboarding, persisted Leads, Conversations, Follow-ups,
+  dashboard counts, and operational Activity. Customer communication is not
+  sent externally.
+- Versioned manual workflows, explicit policy outcomes, human review,
+  transactional outbox processing, a supervised worker, internal notifications,
+  and auditable execution. Workflow side effects are limited to dry-run and
+  internal-notification actions.
+- General workspace settings and a read-only Team view. AI, integrations, and
+  several advanced settings remain visibly unavailable rather than simulating
+  successful operations.
+
+```text
+Next.js web → NestJS API → Prisma/PostgreSQL
+                         └→ transactional outbox → worker
+                                                   └→ internal notification + audit
+```
+
+## Run the built application locally (Windows)
+
+Requires Node.js 22+, pnpm 11.19.0, and PostgreSQL 16 command-line tools. From
+the repository root:
+
+```powershell
+pnpm install --frozen-lockfile
+pnpm local:production:prepare
+pnpm local:production:start
+```
+
+Open `https://localhost:3000`. In another terminal, run
+`pnpm local:production:status` to check the web app, API, worker, and isolated
+PostgreSQL cluster; stop cleanly with `pnpm local:production:stop`. The active
+database and generated local credentials live outside the OneDrive-synced
+repository in `%LOCALAPPDATA%\AI-Operations-Platform\local-production`.
+This runner does **not** modify the normal `ai_operations` database. Its
+self-signed certificate is not trusted by Windows, by the owner's choice, so
+a regular browser may show a certificate warning. The
+[local production runbook](docs/LOCAL-PRODUCTION-RUNBOOK.md) covers certificate-
+pinned health checks, backup, recovery, and disposable tests. Never upload the
+local runtime state or a real `.env` file.
+
+For interactive use without changing Windows certificate trust, stop the
+built stack with `pnpm local:production:stop`, run `pnpm dev`, and open
+`http://localhost:3000` (HTTP, not HTTPS). This uses the separate database
+configured in `.env`; accounts created in the isolated production-build demo
+do not automatically appear there. Do not run both stacks on ports 3000/4000.
+
+## Validate
+
+```powershell
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm db:validate
+pnpm build
+pnpm local:production:db-test
+pnpm local:production:e2e
+pnpm local:production:restore-test
+```
+
+The default unit run intentionally skips database tests. The three
+`local:production:*` test commands above use generated disposable databases
+inside the isolated local PostgreSQL cluster; do not substitute an unknown
+`DATABASE_URL`. Stop the local stack before running the database/browser
+tests or `pnpm build`; a plain build replaces the local web artifact, so run
+`pnpm local:production:prepare` again before the next local start. The last
+verified run passed 236 default tests, 268 isolated
+database tests, and all six Chromium release-gate tests. See the report for
+dates, caveats, and remaining blockers.
+
+## Deployment boundary
+
+This repository includes CI, a production Dockerfile, and a **reference**
+single-host Compose setup. No hosted deployment has been verified. A public
+release still needs a reviewed image build, managed PostgreSQL and backups,
+trusted HTTPS domains, secure secret management, a verified SES identity for
+authentication email, and hosted integration/browser testing. Docker Desktop
+on the current development machine is blocked before Engine readiness; the
+native local runtime does not depend on Docker. See
+[deployment guidance](docs/DEPLOYMENT.md) and
+[security boundaries](docs/SECURITY.md).
+
+## Implementation detail and history
 
 ## Current implementation
 
-- pnpm TypeScript monorepo with Next.js web and NestJS API shells
+- pnpm TypeScript monorepo with Next.js web and NestJS API services
 - shared `ui`, `types`, `config`, and `utils` package boundaries
 - PostgreSQL/Prisma identity and multi-tenant persistence foundation with a versioned initial migration, plus local Redis infrastructure reserved for later BullMQ adoption
 - lint, formatting, typecheck, test, build, CI, and Docker foundations
@@ -25,13 +128,19 @@ Phase 22 adds centralized RBAC and verified tenant context. Phase 23 applies it 
 
 Phase 28 introduces the first durable asynchronous boundary. `pnpm --filter @aop/api worker` claims due outbox rows with PostgreSQL row locking, uses the existing tenant-scoped idempotency key when calling the provider adapter, and records provider outcomes atomically with message/outbox state. Retry delays are bounded to 30 seconds, 2 minutes, and 10 minutes with a three-attempt ceiling. Stale processing leases are recoverable. Redis/BullMQ and a managed secret store are intentionally not required yet; provider configurations accept opaque `secret://` references only.
 
-The next reliability slice adds `/health/ready`, aggregate outbox diagnostics in worker logs, stale-lease exhaustion handling, and an explicit uncertain-delivery state for future providers that cannot deduplicate sends. CI now runs the disposable-PostgreSQL integration suite. Amazon SES is an opt-in transport for **authentication verification and reset email only** (`AUTH_EMAIL_TRANSPORT=ses`, `AWS_REGION`, `SES_FROM_EMAIL`); it uses the AWS SDK credential chain and has not been exercised against a live AWS account. Customer-conversation delivery remains TEST-only. No AWS infrastructure or hosted environment is deployed.
+The worker exposes `/health/ready` and worker diagnostics, and handles
+bounded retries and stale work. CI runs the disposable-PostgreSQL integration
+suite. Amazon SES is an opt-in transport for **authentication verification and
+reset email only** (`AUTH_EMAIL_TRANSPORT=ses`, `AWS_REGION`, `SES_FROM_EMAIL`);
+it uses the AWS SDK credential chain and has not been exercised against a live
+AWS account. Customer-conversation delivery remains TEST-only. No AWS
+infrastructure or hosted environment is deployed.
 
-## Local setup
+## Development setup
 
 1. Install Node.js 22+ and pnpm 11.
 2. Copy `.env.example` to `.env` and replace development secrets.
-3. Start the project PostgreSQL service with `docker compose -f infra/docker-compose.yml up -d`, or use an existing local PostgreSQL instance dedicated to this project. Do not point `DATABASE_URL` at another application's database.
+3. Start a reviewed, project-dedicated PostgreSQL instance. The project Docker Compose file is one option **only when Docker Engine is healthy**; the current machine's Docker Engine is blocked. Do not point `DATABASE_URL` at another application's database.
 4. Run `pnpm install`.
 5. Run `pnpm db:validate`.
 6. Apply migrations only to a reviewed local database with `pnpm db:migrate:deploy`.

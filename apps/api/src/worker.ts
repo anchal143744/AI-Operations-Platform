@@ -57,6 +57,7 @@ async function bootstrap() {
     await operations.register(instanceId);
     registered = true;
     emit("info", "worker.started");
+    if (process.connected) process.send?.({ type: "ready" });
     heartbeatTimer = setInterval(() => {
       if (heartbeatInFlight || stopping) return;
       heartbeatInFlight = operations

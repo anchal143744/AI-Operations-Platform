@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "AI Operations Platform — Controlled AI for Business Execution",
   description:
     "Turn B2B customer enquiries into structured, qualified, and followed-up opportunities through controlled AI workflows.",
+  icons: { icon: "/favicon.svg" },
 };
 
 export default function RootLayout({

@@ -35,6 +35,35 @@ describe("Amazon SES authentication email boundary", () => {
     ).toThrow("HTTPS");
   });
 
+  it("permits the non-delivering preview only for explicit HTTPS localhost production builds", () => {
+    const development = new DevelopmentAuthEmailService();
+    const environment = {
+      NODE_ENV: "production",
+      AOP_LOCAL_PRODUCTION: "true",
+      APP_ORIGIN: "https://localhost:3000",
+      AUTH_EMAIL_TRANSPORT: "development",
+      AUTH_TOKEN_PEPPER: "test-only-pepper-with-at-least-32-characters",
+    };
+    expect(
+      selectAuthEmailService(environment, environment.APP_ORIGIN, development),
+    ).toBe(development);
+    const config = new AuthConfig(environment);
+    expect(config.localCodePreviewEnabled).toBe(true);
+    expect(config.secureCookies).toBe(true);
+    expect(config.sessionCookieName).toBe("__Host-aop_session");
+    for (const origin of ["http://localhost:3000", "https://app.example"])
+      expect(() =>
+        selectAuthEmailService(environment, origin, development),
+      ).toThrow("AOP_LOCAL_PRODUCTION requires");
+    expect(() =>
+      selectAuthEmailService(
+        { ...environment, AOP_LOCAL_PRODUCTION: "false" },
+        environment.APP_ORIGIN,
+        development,
+      ),
+    ).toThrow("must be configured");
+  });
+
   it("requires explicit region and verified sender configuration", () => {
     expect(() =>
       createSesAuthEmailService(

@@ -22,6 +22,7 @@ import {
   type AuthNoticeValue,
 } from "./auth-elements";
 import { PasswordField } from "./password-field";
+import { useAuthFormReady } from "./use-auth-form-ready";
 
 function readResetInput(form: HTMLFormElement): ResetPasswordInput {
   const data = new FormData(form);
@@ -38,6 +39,7 @@ export function ResetPasswordForm({
   passwordUpdated?: boolean;
   resetToken?: string | undefined;
 }) {
+  const formReady = useAuthFormReady();
   const formRef = useRef<HTMLFormElement>(null);
   const [errors, setErrors] = useState<ResetPasswordValidationErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -136,6 +138,7 @@ export function ResetPasswordForm({
 
       <form
         ref={formRef}
+        method="post"
         className="auth-form"
         noValidate
         aria-busy={isSubmitting}
@@ -148,7 +151,7 @@ export function ResetPasswordForm({
           label="New password"
           autoComplete="new-password"
           error={errors.password}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !formReady}
           showStrength
           onBlur={() => validateField("password")}
         />
@@ -158,14 +161,14 @@ export function ResetPasswordForm({
           label="Confirm new password"
           autoComplete="new-password"
           error={errors.confirmPassword}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !formReady}
           helpText="Enter the same password again."
           onBlur={() => validateField("confirmPassword")}
         />
         <Button
           className="auth-submit"
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !formReady}
           aria-describedby="reset-status"
         >
           {isSubmitting ? (

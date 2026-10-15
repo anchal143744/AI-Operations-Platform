@@ -5,7 +5,7 @@ import { AppShell } from "../../components/app-shell/app-shell";
 export const metadata: Metadata = {
   title: "Human Review | AI Operations Platform",
   description:
-    "Frontend-only control workspace for future human approval of consequential actions.",
+    "Review and decide approval requests for controlled internal workflow actions.",
 };
 
 export default function ApprovalsRoute() {

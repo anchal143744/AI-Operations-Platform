@@ -29,6 +29,12 @@ restore rehearsal cadence before accepting production data.
    data restore is required, follow incident approval, isolate the live
    endpoint, restore into a new managed instance, verify, then repoint traffic.
 
-`pg_dump`/`pg_restore` were not available in the local PATH and the Docker
-daemon was unavailable during this review. No backup/restore rehearsal has
-been performed; this is a release gate for the staging account owner.
+PostgreSQL 16 binaries are installed outside the local PATH. On 2026-10-13,
+`pnpm test:backup:local` created and migrated a random disposable schema in
+the confirmed loopback `ai_operations` database, inserted one synthetic probe
+row, dumped only that schema, restored it, verified the row and all 17
+migration records, then removed the generated schema and archive. The script
+refuses remote or unknown database targets. This is a local logical restore
+rehearsal, **not** evidence of managed backup retention, point-in-time
+recovery, RPO/RTO, or a hosted restore. A separate staging restore into a new
+disposable database remains a release gate. Docker Engine was unavailable.

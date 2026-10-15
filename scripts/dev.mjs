@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { connect } from "node:net";
 import { resolve } from "node:path";
@@ -48,6 +48,30 @@ const [webListening, apiListening] = await Promise.all([
   isListening(apiPort),
 ]);
 
+if (!webListening && !apiListening) {
+  for (const args of [
+    ["--filter", "@aop/types", "build"],
+    ["--filter", "@aop/api", "build:dev"],
+  ]) {
+    const build = spawnSync(process.execPath, [pnpmCli, ...args], {
+      stdio: "inherit",
+      env: process.env,
+    });
+    if (build.status !== 0) {
+      process.stderr.write(
+        `Development prerequisite build failed: ${args.join(" ")}.\n`,
+      );
+      process.exit(build.status ?? 1);
+    }
+  }
+  if ((await isListening(webPort)) || (await isListening(apiPort))) {
+    process.stderr.write(
+      "A web or API port became occupied during prerequisite builds; no second dev stack was started.\n",
+    );
+    process.exit(1);
+  }
+}
+
 if (webListening || apiListening) {
   const [webHealthy, apiHealthy] = await Promise.all([
     webListening
@@ -95,11 +119,37 @@ if (webListening || apiListening) {
   let restartTimer;
   let workerStopTimer;
   let failures = 0;
+  const workerPath = resolve("apps/api/dist-dev/worker.js");
+
+  async function startWorkerWhenApiReady() {
+    for (let attempt = 0; attempt < 60 && !stopping; attempt += 1) {
+      if (
+        existsSync(workerPath) &&
+        (await isHealthy(
+          `http://127.0.0.1:${apiPort}/health/ready`,
+          '"status":"ready"',
+        ))
+      ) {
+        if (!stopping) startWorker();
+        return;
+      }
+      await new Promise((resolveDelay) =>
+        globalThis.setTimeout(resolveDelay, 1000),
+      );
+    }
+    if (!stopping) {
+      process.stderr.write(
+        "API or compiled worker did not become ready; stopping the incomplete dev stack.\n",
+      );
+      process.exitCode = 1;
+      stop();
+    }
+  }
 
   function startWorker() {
     if (stopping) return;
     const startedAt = Date.now();
-    worker = spawn(process.execPath, [resolve("apps/api/dist-dev/worker.js")], {
+    worker = spawn(process.execPath, [workerPath], {
       stdio: ["inherit", "inherit", "inherit", "ipc"],
       env: process.env,
     });
@@ -115,7 +165,9 @@ if (webListening || apiListening) {
       process.stderr.write(
         `Local outbox worker exited (${code ?? signal}); restarting in ${delayMs} ms.\n`,
       );
-      restartTimer = globalThis.setTimeout(startWorker, delayMs);
+      restartTimer = globalThis.setTimeout(() => {
+        void startWorkerWhenApiReady();
+      }, delayMs);
     });
     worker.on("spawn", () => {
       process.stdout.write("Local outbox worker launched.\n");
@@ -142,8 +194,6 @@ if (webListening || apiListening) {
 
   process.once("SIGINT", stop);
   process.once("SIGTERM", stop);
-  startWorker();
-
   services.on("error", (error) => {
     process.stderr.write(
       `Failed to start development services: ${error.message}\n`,
@@ -155,4 +205,5 @@ if (webListening || apiListening) {
     stop();
     process.exitCode = code ?? 1;
   });
+  void startWorkerWhenApiReady();
 }

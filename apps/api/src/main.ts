@@ -14,7 +14,10 @@ import {
 } from "express";
 import helmet from "helmet";
 import { AppModule } from "./app.module.js";
-import { isLoopbackOrigin } from "./auth/auth.config.js";
+import {
+  isLocalProductionPreview,
+  isLoopbackOrigin,
+} from "./auth/auth.config.js";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
@@ -111,6 +114,10 @@ async function bootstrap() {
     process.env.NODE_ENV === "development" &&
     (process.env.AUTH_EMAIL_TRANSPORT ?? "development") === "development" &&
     isLoopbackOrigin(appOrigin);
+  const localProductionPreview = isLocalProductionPreview(
+    process.env,
+    appOrigin,
+  );
   const configuredPort =
     process.env.NODE_ENV === "production"
       ? (process.env.PORT ?? process.env.API_PORT)
@@ -119,7 +126,10 @@ async function bootstrap() {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error("API port must be an integer between 1 and 65535.");
   }
-  await app.listen(port, localEmailPreview ? "127.0.0.1" : "0.0.0.0");
+  await app.listen(
+    port,
+    localEmailPreview || localProductionPreview ? "127.0.0.1" : "0.0.0.0",
+  );
 }
 
 void bootstrap().catch((error: unknown) => {

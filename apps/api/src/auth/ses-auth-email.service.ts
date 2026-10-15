@@ -1,4 +1,5 @@
 import { SendEmailCommand, SESv2Client } from "@aws-sdk/client-sesv2";
+import { isLocalProductionPreview } from "./auth.config.js";
 import type {
   AuthEmailService,
   DevelopmentAuthEmailService,
@@ -82,7 +83,10 @@ export function selectAuthEmailService(
 ): AuthEmailService {
   const transport = environment.AUTH_EMAIL_TRANSPORT ?? "development";
   if (transport === "development") {
-    if (environment.NODE_ENV === "production") {
+    if (
+      environment.NODE_ENV === "production" &&
+      !isLocalProductionPreview(environment, appOrigin)
+    ) {
       throw new Error(
         "AUTH_EMAIL_TRANSPORT must be configured for production delivery.",
       );

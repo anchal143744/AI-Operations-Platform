@@ -5,7 +5,7 @@ import { WorkflowsPage } from "../../components/workflows/workflows-page";
 export const metadata: Metadata = {
   title: "Workflows | AI Operations Platform",
   description:
-    "Frontend-only architecture for controlled operational automation.",
+    "Manage persisted workflow definitions, policies, review requests, and internal execution history.",
 };
 
 export default function WorkflowsRoute() {

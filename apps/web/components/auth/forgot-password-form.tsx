@@ -18,8 +18,10 @@ import {
   BackToSignIn,
   type AuthNoticeValue,
 } from "./auth-elements";
+import { useAuthFormReady } from "./use-auth-form-ready";
 
 export function ForgotPasswordForm() {
+  const formReady = useAuthFormReady();
   const formRef = useRef<HTMLFormElement>(null);
   const [emailError, setEmailError] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -106,6 +108,7 @@ export function ForgotPasswordForm() {
 
       <form
         ref={formRef}
+        method="post"
         className="auth-form"
         noValidate
         aria-busy={isSubmitting}
@@ -120,7 +123,7 @@ export function ForgotPasswordForm() {
           inputMode="email"
           autoComplete="email"
           required
-          disabled={isSubmitting}
+          disabled={isSubmitting || !formReady}
           error={emailError}
           onBlur={(event) =>
             setEmailError(validatePasswordResetEmail(event.currentTarget.value))
@@ -129,7 +132,7 @@ export function ForgotPasswordForm() {
         <Button
           className="auth-submit"
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !formReady}
           aria-describedby="recovery-status"
         >
           {isSubmitting ? (

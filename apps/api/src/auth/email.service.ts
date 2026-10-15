@@ -26,6 +26,12 @@ export class DevelopmentAuthEmailService implements AuthEmailService {
   private readonly logger = new Logger(DevelopmentAuthEmailService.name);
 
   async sendVerificationCode(message: VerificationEmail): Promise<void> {
+    if (process.env.AOP_LOCAL_PRODUCTION === "true") {
+      this.logger.warn(
+        "[LOCAL ONLY] Verification code is available in the registration response; no email was sent.",
+      );
+      return;
+    }
     this.logger.warn(
       `[DEV ONLY] Verification code: ${message.code} | Expires: ${message.expiresAt.toISOString()}`,
     );

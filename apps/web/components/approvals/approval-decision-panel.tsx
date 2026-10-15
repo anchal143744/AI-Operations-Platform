@@ -23,7 +23,10 @@ export function ApprovalDecisionPanel({
           rows={3}
           placeholder="Add context for the approval decision..."
         />
-        <small>Notes will not be stored in this frontend-only phase.</small>
+        <small>
+          Decision notes for live workflow requests are stored through the
+          review queue above. This preview does not submit notes.
+        </small>
       </label>
 
       <div
