@@ -562,7 +562,7 @@ svg {
   place-items: center;
   overflow: hidden;
   border-radius: 0.55rem;
-  background: var(--color-dark);
+  background: var(--color-brand);
 }
 
 .brand-symbol span {

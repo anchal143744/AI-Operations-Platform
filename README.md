@@ -90,6 +90,13 @@ reports that its runtime is not prepared or the build identity changed, run
 the existing combined `pnpm local:production` command. That HTTPS rehearsal
 still has the self-signed certificate warning the owner chose not to trust.
 
+The local Desktop shortcut uses the same blue/teal product mark as the app,
+browser favicon, and installable-app metadata. The vector source is
+`apps/web/public/favicon.svg`; after changing it, regenerate the committed
+PNG/ICO assets with `node scripts/generate-brand-icons.mjs`. This requires the
+repository's Playwright Chromium installation. The web manifest supplies app
+identity and icons but does not make the backend available offline.
+
 ## Validate
 
 ```powershell
