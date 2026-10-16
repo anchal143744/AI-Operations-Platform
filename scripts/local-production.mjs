@@ -404,7 +404,7 @@ async function start() {
     !existsSync(join(root, "apps/api/dist/main.js"))
   ) {
     throw new Error(
-      "Local production runtime is not prepared. Run pnpm local:production:prepare first.",
+      "Local production runtime is not prepared. Run pnpm local:production:prepare before :start (or use pnpm local:production for both steps). For the certificate-warning-free local app window, use Open AI Operations Platform.cmd instead.",
     );
   }
   const built = JSON.parse(await readFile(buildMarker, "utf8"));

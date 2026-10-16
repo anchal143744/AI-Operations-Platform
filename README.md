@@ -67,6 +67,29 @@ built stack with `pnpm local:production:stop`, run `pnpm dev`, and open
 configured in `.env`; accounts created in the isolated production-build demo
 do not automatically appear there. Do not run both stacks on ports 3000/4000.
 
+### One-click local window (Windows)
+
+After installing dependencies and configuring the existing `.env` and local
+PostgreSQL service, double-click [Open AI Operations Platform.cmd](Open%20AI%20Operations%20Platform.cmd)
+in this repository. It reuses a healthy HTTP development stack or starts the
+existing `pnpm dev` web/API/worker supervisor, waits for all three readiness
+checks, then opens the sign-in page in an Edge app-style window. It refuses to
+start a second stack when either application port belongs to an unhealthy or
+unknown process. Startup diagnostics are written under
+`%LOCALAPPDATA%\AI-Operations-Platform\launcher\dev.log`.
+
+This is a **local launcher, not a standalone installed desktop application**:
+Node.js, pnpm, the repository, and the configured local PostgreSQL service
+remain required. Closing the browser window does not stop the background
+services; opening the launcher again reuses them. The launcher does not install
+certificates, create accounts, migrate databases, or send email. For an actual
+always-available public URL, deploy and supervise the web, API, worker, and
+database on a reviewed host with trusted TLS. If `local:production:start`
+reports that its runtime is not prepared or the build identity changed, run
+`pnpm local:production:prepare` before `pnpm local:production:start`, or use
+the existing combined `pnpm local:production` command. That HTTPS rehearsal
+still has the self-signed certificate warning the owner chose not to trust.
+
 ## Validate
 
 ```powershell
